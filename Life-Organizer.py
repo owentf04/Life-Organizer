@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import sqlite3
 from datetime import date
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
 # =========================
@@ -27,11 +29,11 @@ projects REAL,
 
 calories INTEGER,
 protein REAL,
-gym INTEGER,
+gym REAL,
 cardio_sports REAL,
 cardio_walks REAL,
 cardio_runs REAL,
-abs INTEGER,
+abs REAL,
 sleep REAL,
 weight REAL,
 
@@ -52,8 +54,9 @@ mixed_necessary REAL,
 
 youtube REAL,
 anime REAL,
-gaming REAL
+gaming REAL,
 
+misc REAL
 )
 """)
 
@@ -83,11 +86,11 @@ FIELDS = {
 
 ("Calories (kcals)", "calories"),
 ("Protein (g)", "protein"),
-("Gym", "gym"),
+("Gym (min)", "gym"),
 ("Sports Cardio (min)", "cardio_sports"),
 ("Walk Cardio (min)", "cardio_walks"),
 ("Run Cardio (min)", "cardio_runs"),
-("Abs", "abs"),
+("Abs (min)", "abs"),
 ("Sleep (hrs)", "sleep"),
 ("Weight (kg)", "weight")
 
@@ -127,6 +130,10 @@ FIELDS = {
 ("Anime (min)", "anime"),
 ("Gaming (min)", "gaming")
 
+],
+
+"Misc": [
+    ("Misc Time (min)", "misc")
 ]
 
 }
@@ -184,8 +191,9 @@ def save_entry():
 
     ?,?,?,?,?,?,?,
 
-    ?,?,?
+    ?,?,?,
 
+    ?
     )
 
     """, values)
@@ -245,7 +253,9 @@ def show_history():
 
         "YouTube",
         "Anime",
-        "Gaming"
+        "Gaming",
+
+        "Misc"
     ]
 
 
@@ -314,7 +324,9 @@ def show_history():
 
         youtube,
         anime,
-        gaming
+        gaming,
+                   
+        misc
 
         FROM daily_entries
 
@@ -334,6 +346,204 @@ def show_history():
             values=row
         )
 
+def show_dashboard():
+
+    dashboard = tk.Toplevel(root)
+
+    dashboard.title("Dashboard")
+
+    dashboard.geometry("800x600")
+
+
+    # Get latest day
+
+    cursor.execute("""
+        SELECT *
+
+        FROM daily_entries
+
+        ORDER BY date DESC
+
+        LIMIT 1
+    """)
+
+
+    row = cursor.fetchone()
+
+
+    if not row:
+
+        messagebox.showinfo(
+            "No Data",
+            "No entries found"
+        )
+
+        return
+
+
+
+    # Column mapping
+
+    data = {
+
+        "Mind": 0,
+        "Body": 0,
+        "Soul": 0,
+        "Material": 0,
+        "Hobby": 0,
+        "Misc": 0
+
+    }
+
+
+
+    # -------------------
+    # Mind (minutes)
+    # -------------------
+
+    data["Mind"] += (
+
+        (row[2] or 0) +
+        (row[3] or 0) +
+        (row[4] or 0) +
+        (row[5] or 0) +
+        (row[6] or 0)
+    ) / 60
+
+
+
+    # -------------------
+    # Body
+    # -------------------
+
+    data["Body"] += (
+        (row[9] or 0) + # gym
+        (row[10] or 0) + # sports
+        (row[11] or 0) + # walks
+        (row[12] or 0) + # runs
+        (row[13] or 0)   # abs
+    ) / 60
+
+
+    # sleep is already hours
+
+    data["Body"] += (
+        row[14] or 0
+    )
+
+
+
+    # -------------------
+    # Soul
+    # -------------------
+
+    data["Soul"] += (
+        row[17] or 0
+    )
+
+    data["Soul"] += (
+        row[18] or 0
+    )
+
+    data["Soul"] += (
+        row[19] or 0
+    )
+
+    data["Soul"] += (
+        row[20] or 0
+    ) / 60
+
+
+
+    # -------------------
+    # Material
+    # -------------------
+
+    data["Material"] = (
+        row[22] or 0
+    )
+
+
+
+    # -------------------
+    # Hobby
+    # -------------------
+
+    data["Hobby"] += (
+        (row[29] or 0) +
+        (row[30] or 0) +
+        (row[31] or 0)
+    ) / 60
+
+    data["Misc"] += (
+        row[32] or 0
+    ) / 60
+    data
+
+    # -------------------
+    # Fill remaining time
+    # -------------------
+
+    total = sum(
+        data.values()
+    )
+
+
+    if total < 24:
+
+        data["Unaccounted"] = 24 - total
+
+
+
+    labels = list(
+        data.keys()
+    )
+
+    values = list(
+        data.values()
+    )
+
+
+
+    # -------------------
+    # Pie chart
+    # -------------------
+
+    fig = Figure(
+        figsize=(6,6)
+    )
+
+
+    ax = fig.add_subplot(111)
+
+
+    ax.pie(
+        values,
+        labels=labels,
+        autopct="%1.1f%%"
+    )
+
+
+    ax.set_title(
+        "Most Recent Day Breakdown"
+    )
+
+
+
+    canvas = FigureCanvasTkAgg(
+        fig,
+        dashboard
+    )
+
+
+    canvas.draw()
+
+
+    canvas.get_tk_widget().pack(
+        fill="both",
+        expand=True
+    )
+
 # =========================
 # GUI
 # =========================
@@ -341,7 +551,7 @@ def show_history():
 root = tk.Tk()
 
 root.title("Life Tracker")
-root.geometry("1350x600")
+root.geometry("1600x600")
 
 
 main = ttk.Frame(root)
@@ -415,42 +625,20 @@ for col, category in enumerate(categories):
             pady=3
         )
 
-
-        if db_name in ["gym","abs"]:
-
-
-            var = tk.BooleanVar()
-
-
-            ttk.Checkbutton(
-                section,
-                variable=var
-            ).grid(
-                row=row,
-                column=1
-            )
+        entry = ttk.Entry(
+            section,
+            width=12
+        )
 
 
-            checkboxes[db_name]=var
+        entry.grid(
+            row=row,
+            column=1,
+            padx=5
+        )
 
 
-        else:
-
-
-            entry = ttk.Entry(
-                section,
-                width=12
-            )
-
-
-            entry.grid(
-                row=row,
-                column=1,
-                padx=5
-            )
-
-
-            entries[db_name]=entry
+        entries[db_name]=entry
 
 
 
@@ -465,6 +653,13 @@ ttk.Button(
     pady=5
 )
 
+ttk.Button(
+    root,
+    text="Dashboard",
+    command=show_dashboard
+).pack(
+    pady=5
+)
 
 ttk.Button(
     root,
