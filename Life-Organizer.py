@@ -379,153 +379,178 @@ def show_dashboard():
         )
 
         return
+    
+    def remove_zero_values(data):
 
-
-
-    # Column mapping
-
-    data = {
-
-        "Mind": 0,
-        "Body": 0,
-        "Soul": 0,
-        "Material": 0,
-        "Hobby": 0,
-        "Misc": 0
-
-    }
-
-
+        return {
+            key: value
+            for key, value in data.items()
+            if value > 0
+        }
 
     # -------------------
     # Mind (minutes)
     # -------------------
 
-    data["Mind"] += (
+    mind = {
 
-        (row[2] or 0) +
-        (row[3] or 0) +
-        (row[4] or 0) +
-        (row[5] or 0) +
-        (row[6] or 0)
-    ) / 60
-
-
+        "Chess Played": (row[2] or 0) / 60,
+        "Chess Studied": (row[3] or 0) / 60,
+        "Leetcode": (row[4] or 0) / 60,
+        "Language": (row[5] or 0) / 60,
+        "Projects": (row[6] or 0) / 60
+    }
 
     # -------------------
     # Body
     # -------------------
-
-    data["Body"] += (
-        (row[9] or 0) + # gym
-        (row[10] or 0) + # sports
-        (row[11] or 0) + # walks
-        (row[12] or 0) + # runs
-        (row[13] or 0)   # abs
-    ) / 60
-
-
-    # sleep is already hours
-
-    data["Body"] += (
-        row[14] or 0
-    )
-
-
+    body = {
+        "gym": (row[9] or 0)/ 60,
+        "sports": (row[10] or 0)/ 60,
+        "walks": (row[11] or 0)/ 60,
+        "runs": (row[12] or 0)/ 60,
+        "abs": (row[13] or 0) / 60,
+        "sleep": (row[14] or 0)
+    }
 
     # -------------------
     # Soul
     # -------------------
-
-    data["Soul"] += (
-        row[17] or 0
-    )
-
-    data["Soul"] += (
-        row[18] or 0
-    )
-
-    data["Soul"] += (
-        row[19] or 0
-    )
-
-    data["Soul"] += (
-        row[20] or 0
-    ) / 60
-
-
-
+    soul = {
+        "book": (row[16] or 0) / 9,
+        "girlfriend": (row[17] or 0),
+        "family": (row[18] or 0),
+        "friends": (row[19] or 0),
+        "good_deeds": (row[20] or 0) / 60 
+    }
     # -------------------
     # Material
     # -------------------
+    overall = {
+        "Mind":
+            sum(mind.values()),
 
-    data["Material"] = (
-        row[22] or 0
-    )
+        "Body":
+            sum(body.values()),
+
+        "Soul":
+            sum(soul.values()),
+
+        "Material":
+            row[24] or 0,
 
 
+        "Hobby":
+            (
+                (row[29] or 0)
+                +
+                (row[30] or 0)
+                +
+                (row[31] or 0)
+            ) / 60,
 
-    # -------------------
-    # Hobby
-    # -------------------
-
-    data["Hobby"] += (
-        (row[29] or 0) +
-        (row[30] or 0) +
-        (row[31] or 0)
-    ) / 60
-
-    data["Misc"] += (
-        row[32] or 0
-    ) / 60
-    data
+        "Misc": 
+            (
+                row[32] or 0
+            )/ 60
+    }
 
     # -------------------
     # Fill remaining time
     # -------------------
-
-    total = sum(
-        data.values()
-    )
+    remaining = 24 - sum(overall.values())
 
 
-    if total < 24:
-
-        data["Unaccounted"] = 24 - total
-
-
-
-    labels = list(
-        data.keys()
-    )
-
-    values = list(
-        data.values()
-    )
-
-
+    if remaining > 0:
+        overall["Unaccounted"] = remaining
 
     # -------------------
     # Pie chart
-    # -------------------
+    # -------------------         
+
+    # formatter
+    def make_autopct(values):
+
+        def my_autopct(pct):
+
+            total = sum(values)
+
+            hours = pct * total / 100
+
+            return f"{hours:.1f} hrs\n({pct:.1f}%)"
+
+        return my_autopct
+
+    overall = remove_zero_values(overall)
+    mind = remove_zero_values(mind)
+    body = remove_zero_values(body)
+    soul = remove_zero_values(soul)
 
     fig = Figure(
-        figsize=(6,6)
+        figsize=(12,8)
     )
 
 
-    ax = fig.add_subplot(111)
+    ax1 = fig.add_subplot(221)
 
+    ax1.pie(
+        overall.values(),
+        labels=overall.keys(),
+        autopct=make_autopct(
+            list(overall.values())
+        )
+    )
 
-    ax.pie(
-        values,
-        labels=labels,
-        autopct="%1.1f%%"
+    ax1.set_title(
+        "24 Hour Breakdown"
     )
 
 
-    ax.set_title(
-        "Most Recent Day Breakdown"
+
+    ax2 = fig.add_subplot(222)
+
+    ax2.pie(
+        mind.values(),
+        labels=mind.keys(),
+        autopct=make_autopct(
+            list(mind.values())
+        )
+    )
+
+    ax2.set_title(
+        "Mind"
+    )
+
+
+
+    ax3 = fig.add_subplot(223)
+
+    ax3.pie(
+        body.values(),
+        labels=body.keys(),
+        autopct=make_autopct(
+            list(body.values())
+        )
+    )
+
+    ax3.set_title(
+        "Body"
+    )
+
+
+
+    ax4 = fig.add_subplot(224)
+
+    ax4.pie(
+        soul.values(),
+        labels=soul.keys(),
+        autopct=make_autopct(
+            list(soul.values())
+        )
+    )
+
+    ax4.set_title(
+        "Soul"
     )
 
 
@@ -534,7 +559,6 @@ def show_dashboard():
         fig,
         dashboard
     )
-
 
     canvas.draw()
 
